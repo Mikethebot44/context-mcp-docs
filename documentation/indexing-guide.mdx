@@ -1,0 +1,86 @@
+---
+title: "Indexing Guide"
+description: "Deep dive on `index-content`, covering parameters, Firecrawl/GitHub behaviors, and best practices."
+---
+
+# Indexing Guide (`index-content`)
+
+`index-content` is the ingestion workhorse. Each call accepts a single URL, detects whether it points to a documentation site or a GitHub repository, then launches a background job that feeds Pinecone.
+
+## Parameters
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `url` | string | Required. Any HTTP(S) base URL; `https://` is assumed if omitted. |
+| `prompt` | string? | Guidance for the crawler (“Focus on API reference and skip marketing”). |
+| `maxPages` | number? | Upper bound on crawled pages (helpful for large sites). |
+| `includePaths` | string[]? | Only crawl URLs containing these substrings. |
+| `excludePaths` | string[]? | Skip URLs containing these substrings. |
+| `background` | boolean? | Queue as a background job so you can keep working while it runs. |
+
+## Example: Targeted documentation crawl
+
+**Prompt**
+
+> “Index https://docs.example.com with an emphasis on `/api` and `/guides`. Ignore `/blog`, limit to 150 pages, and use the prompt ‘Focus on API reference pages and skip marketing content.’”
+
+**Response**
+
+```json
+{
+  "tool": "index-content",
+  "jobId": "job_Lq1v7z",
+  "status": "queued",
+  "message": "Crawl enqueued with includePaths [/api,/guides], excludePaths [/blog], maxPages 150."
+}
+```
+
+## Example: Background job
+
+**Prompt**
+
+> “Index https://developer.example.com overnight in the background so I can keep using the agent.”
+
+**Response**
+
+```json
+{
+  "tool": "index-content",
+  "jobId": "job_u88t2n",
+  "status": "queued",
+  "background": true,
+  "message": "Documentation indexing runs asynchronously. Use index-job-status job_u88t2n to monitor progress."
+}
+```
+
+## Example: GitHub README bundle
+
+`index-content` also handles GitHub repositories by walking the tree via GraphQL, generating GPT summaries, and hashing blobs so subsequent crawls only upload diffs.
+
+**Prompt**
+
+> “Index https://github.com/example/awesome-repo so I can search the README and docs folder.”
+
+**Response**
+
+```json
+{
+  "tool": "index-content",
+  "jobId": "job_repo42",
+  "status": "queued",
+  "sourceKind": "github"
+}
+```
+
+## What happens under the hood
+
+- **Documentation jobs** call Firecrawl’s `map` endpoint, dedupe boilerplate, convert metadata into natural-language summaries, and push Qwen embeddings into the `Documentation` Pinecone namespace. Page snapshots (URL + hash) prevent redundant upserts between runs.
+- **GitHub jobs** traverse the repo via GraphQL, capture commit metadata, run AST heuristics across an 8-way worker pool, and fan out GPT-5-nano batch summaries before writing vectors into the `Github` namespace. Blob hashes (path + git OID) ensure we only reprocess changed files.
+
+## Best practices
+
+1. **Start focused.** Use `includePaths` / `excludePaths` alongside `prompt` so you ingest only the sections you need.
+2. **Use background jobs for large crawls.** Anything that might exceed a few minutes should set `background: true` so it doesn’t interrupt your workflow.
+3. **Set reasonable limits.** `maxPages` prevents runaway crawls on sprawling marketing sites.
+4. **Re-run on change.** Kick off new jobs whenever docs ship material updates or when search results look stale.
+5. **Monitor with `index-job-status`.** Always follow up with the returned `jobId` (or run the command with no arguments to see recent jobs) to catch auth issues or throttling quickly.

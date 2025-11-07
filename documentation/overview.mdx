@@ -1,0 +1,69 @@
+---
+title: "Context MCP Overview"
+description: "High-level architecture, capabilities, and transport expectations for the Context MCP server."
+---
+
+# Context MCP Overview
+
+This MCP server packages a documentation + repository research assistant behind a single HTTPS endpoint (`https://context-mcp.vercel.app`). It exposes a focused toolbelt that can crawl public docs, walk GitHub repositories, keep vectorized context fresh, and answer natural-language questions about the ingested material. Everything runs inside your infrastructure; the MCP transport is the only user-facing surface.
+
+## Core Capabilities
+
+- **Documentation indexing** – Expands a doc site starting from a base URL, strips boilerplate, truncates to model-friendly chunks, and stores the result for downstream search.
+- **Repository indexing** – Walks an entire GitHub repository, enriches each file with AST-style signals, captures commit metadata, and summarizes content before ingesting it.
+- **Raw retrieval** – Fetches a single documentation page or repository file on-demand so you can inspect exact wording outside of the vector store.
+- **Semantic search** – Runs dense retrieval across the doc + repo namespaces, then re-ranks results so conversational tooling gets the most relevant passages first.
+- **Job visibility** – Surfaces progress updates for background indexing tasks so you always know what the crawler is doing.
+
+## Transport & Protocol
+
+The server speaks the Model Context Protocol (MCP) over HTTP. Every tool call is a JSON-RPC request with standard MCP envelopes, so it plugs directly into clients like Cursor, Claude Desktop, Continue, and other MCP-aware IDEs.
+
+Example MCP client entry:
+
+```json
+{
+  "mcpServers": {
+    "context-mcp": {
+      "url": "https://context-mcp.vercel.app"
+    }
+  }
+}
+```
+
+## Tool Inventory
+
+| Tool | Purpose |
+| --- | --- |
+| `index-content` | Expands documentation sites via Firecrawl’s map endpoint *or* queues a GitHub crawl that walks the repo, extracts AST metadata, and writes embeddings + GPT summaries into Pinecone. Every call returns a `job_id`. |
+| `scrape-content` | Fetches raw documentation pages (Firecrawl fetch) or repository files (GitHub contents API) on demand so you can cite the original text. |
+| `index-job-status` | Polls the background jobs started by `index-content`, returning queued/running/completed states and optional ingestion payloads. |
+| `search-content` | Accepts a natural-language query plus an optional `sources` toggle (`documentation`, `github`), queries the Pinecone namespaces, and re-ranks matches via Qwen/Qwen3-Reranker-4B for higher semantic precision. |
+
+Each tool streams structured JSON back through MCP, making it easy to chain calls or hand responses to follow-up prompts.
+
+## Environment Variables
+
+Set these before launching the server (for example via `.env`, systemd unit, or your cloud secret manager):
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `FIRECRAWL_API_KEY` | ✅ | Primary key for Firecrawl map/search operations. |
+| `FIRECRAWL_API_KEYS` | Optional | Comma-separated fallback keys; the server rotates automatically when throttled. |
+| `GITHUB_TOKEN` | ✅ | Fine-grained PAT used for GraphQL tree walks, contents downloads, and commit metadata. |
+| `OPENAI_API_KEY` | ✅ | Powers concurrent GPT-5-nano batch jobs that summarize repository files. |
+| `DEEPINFRA_API_KEY` | ✅ | Issues Qwen Embedding 4B requests for both document and query vectors. |
+| `PINECONE_API_KEY` | ✅ | Authenticates writes to the Pinecone index populated by `index-content`. |
+| `PINECONE_HOST` | ✅ | HTTPS host for the Pinecone deployment (for example `https://context-mcp-xxxx.svc.us-east1-gcp.pinecone.io`). |
+| `UPSTASH_REDIS_REST_URL` | ✅ | REST endpoint for the Upstash Redis instance that stores job queue metadata. |
+| `UPSTASH_REDIS_REST_TOKEN` | ✅ | Token used for Upstash REST requests. |
+
+Use `FIRECRAWL_API_KEYS="fc-second-key,fc-third-key"` to seed backup keys; spaces are ignored and duplicates are stripped.
+
+## Usage Notes
+
+- `index-content` handles both doc sites and GitHub repos. Documentation runs call Firecrawl’s `map` endpoint, snapshot the rendered HTML, and push Qwen embeddings into the `Documentation` namespace. Repository runs walk the tree via GitHub GraphQL, collect commit metadata + AST signals, fan out GPT-5-nano summaries, and upsert everything into the `Github` namespace.
+- Every `index-content` call returns a `job_id`. Use `index-job-status` with that ID (or with no params to see recent jobs) and set `include_payload: true` if you need ingestion stats—the actual content lives in Pinecone.
+- Blob snapshots (path + git OID) and page hashes prevent re-summarizing unchanged content. Large repos run across an 8-way worker pool to stay responsive.
+- `search-content` accepts `sources` (any combination of `documentation` / `github`) plus `top_k`, uses Pinecone similarity search, then re-ranks results via Qwen/Qwen3-Reranker-4B for higher semantic precision.
+- `scrape-content` fetches the original page/file over Firecrawl or the GitHub contents API so you can display the full context within your MCP client.

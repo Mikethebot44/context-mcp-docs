@@ -10,88 +10,74 @@ Get your documentation site up and running in minutes.
 <Card
   title="Start here"
   icon="rocket"
-  href="/quickstart"
+  href="/documentation/quickstart"
   horizontal
 >
-  Follow our three step quickstart guide.
+  Configure any MCP-aware client against the Context MCP endpoint.
 </Card>
 
-## Make it yours
+## Operate the MCP
 
-Design a docs site that looks great and empowers your users.
+Walk through the core flows for indexing, monitoring jobs, and searching context.
 
 <Columns cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Understand the platform"
+    icon="book-open"
+    href="/documentation/overview"
   >
-    Edit your docs locally and preview them in real time.
+    High-level architecture, capabilities, and MCP transport details.
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Recommended workflows"
+    icon="shuffle"
+    href="/documentation/workflows"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    End-to-end playbooks that chain `index-content`, `search-content`, and more.
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
+    title="Index new sources"
+    icon="database"
+    href="/documentation/indexing-guide"
   >
-    Auto-generate API documentation from OpenAPI specifications.
+    Parameters, payload formats, and examples for `index-content`.
+  </Card>
+  <Card
+    title="Track background jobs"
+    icon="chart-line"
+    href="/documentation/job-status"
+  >
+    Learn how to poll ingestion runs and inspect crawler output.
   </Card>
 </Columns>
 
-## Create beautiful pages
+## Tool Deep Dives
 
-Everything you need to create world-class documentation.
+Reference guides for each high-leverage tool inside the server.
 
 <Columns cols={2}>
   <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
+    title="Search indexed context"
+    icon="magnifying-glass"
+    href="/documentation/search-guide"
   >
-    Use MDX to style your docs pages.
+    Query documentation and repositories with dense retrieval + re-ranking.
   </Card>
   <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
+    title="Retrieve source content"
+    icon="file-lines"
+    href="/documentation/content-retrieval"
   >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+    Grab raw docs or repo files via `scrape-content` for quoting and debugging.
   </Card>
 </Columns>
 
 ## Need inspiration?
 
 <Card
-  title="See complete examples"
+  title="Stay current"
   icon="stars"
-  href="https://mintlify.com/customers"
+  href="/documentation/overview#core-capabilities"
 >
-  Browse our showcase of exceptional documentation sites.
+  Review the latest capabilities before rolling the MCP into production automations.
 </Card>

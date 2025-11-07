@@ -1,0 +1,100 @@
+---
+title: "Job Status Guide"
+description: "Poll and introspect background crawls with the `index-job-status` tool."
+---
+
+# Monitoring Jobs (`index-job-status`)
+
+`index-job-status` gives you full visibility into every background crawl triggered by `index-content`. Use it to poll progress, fetch ingestion stats, or list recent runs when you forget a job identifier.
+
+## Parameters
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job_id` | string? | Inspect a single job by ID. |
+| `source_url` | string? | Fetch the most recent job for a specific documentation site or repository. |
+| `include_payload` | boolean? | When `true`, the response includes ingestion stats such as counts and metadata summaries. |
+| `limit` | number? | How many recent jobs to list when no `job_id`/`source_url` is provided (default 10, max 50). |
+
+Use either `job_id`, `source_url`, or neither (to list jobs). Supplying both `job_id` and `source_url` is unnecessary; `job_id` takes precedence.
+
+## Example: Poll by `job_id`
+
+**Prompt**
+
+> “Check index-job-status for job 4f8a2382-9f0b-4e7d-8454-b2c6eaa75a8d and include the ingestion payload.”
+
+**Response**
+
+```json
+{
+  "id": "4f8a2382-9f0b-4e7d-8454-b2c6eaa75a8d",
+  "type": "documentation-index",
+  "sourceUrl": "https://docs.example.com",
+  "status": "completed",
+  "createdAt": "2024-06-02T15:04:18.231Z",
+  "startedAt": "2024-06-02T15:04:20.115Z",
+  "finishedAt": "2024-06-02T15:05:03.912Z",
+  "progress": {
+    "stage": "completed",
+    "message": "Job completed",
+    "percent": 1,
+    "timestamp": "2024-06-02T15:05:03.912Z"
+  },
+  "progressLog": [
+    { "stage": "queued", "message": "Job queued", "percent": 0, "timestamp": "..." },
+    { "stage": "discovery", "message": "Crawler discovered 134 documentation pages", "percent": 0.25, "timestamp": "..." }
+  ],
+  "result": {
+    "namespace": "Documentation",
+    "indexedCount": 128,
+    "skippedCount": 6,
+    "cachedCount": 94,
+    "details": {
+      "pagesIndexed": 134,
+      "embeddedCount": 128,
+      "cachedCount": 94
+    }
+  }
+}
+```
+
+## Example: List Recent Jobs
+
+**Prompt**
+
+> “List the five most recent index jobs.”
+
+**Response**
+
+```json
+[
+  {
+    "id": "job_latest",
+    "sourceUrl": "https://docs.widgets.io",
+    "status": "completed",
+    "namespace": "Documentation"
+  },
+  {
+    "id": "job_previous",
+    "sourceUrl": "https://github.com/example/awesome-repo",
+    "status": "running",
+    "namespace": "Github"
+  }
+]
+```
+
+The array is ordered by completion time, making it easy to audit your indexing history.
+
+## Progress Stages
+
+Expect to see stages such as:
+
+- `queued` – The job is waiting for a worker slot.
+- `initializing` – Parameters validated; resources allocated.
+- `discovery` / `filtering` – Documentation crawler is expanding sitemaps and pruning URLs.
+- `scan` / `ast` – Repository walker is fetching blobs and extracting structural metadata.
+- `ingest-*` – Entries are being embedded and upserted.
+- `completed` or `failed` – Terminal states.
+
+If a job fails, inspect `error` in the response; the message explains whether it was an authentication issue, a missing repository, or an unexpected crawler error.

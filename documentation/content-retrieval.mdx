@@ -1,0 +1,62 @@
+---
+title: "Content Retrieval Guide"
+description: "Fetch raw documentation or repository files via the `scrape-content` tool."
+---
+
+# On-Demand Content Retrieval (`scrape-content`)
+
+`scrape-content` fetches the raw source material behind any indexed snippet. Use it whenever you need to quote exact wording, review a code file in full, or debug why search returned a particular passage.
+
+## Parameters
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | string | Absolute URL to a documentation page or GitHub file. The scheme is optional. |
+| `max_age_days` | number? | Cache freshness threshold for web pages (1–30 days, default 7). Ignored for GitHub files. |
+
+## Example: Documentation page
+
+**Prompt**
+
+> “Fetch the latest copy of https://docs.example.com/getting-started and refresh anything older than a day.”
+
+**Response**
+
+```json
+{
+  "tool": "scrape-content",
+  "url": "https://docs.example.com/getting-started",
+  "max_age_days": 1,
+  "content": "# Getting Started\n\nInstall the CLI..."
+}
+```
+
+The content is returned as Markdown whenever possible so you can paste it into another prompt or render it inside your client.
+
+## Example: GitHub file
+
+**Prompt**
+
+> “Download the raw contents of https://github.com/example/awesome-repo/blob/main/sdk/client/auth.ts so I can inspect the helper.”
+
+**Response**
+
+```json
+{
+  "tool": "scrape-content",
+  "url": "https://github.com/example/awesome-repo/blob/main/sdk/client/auth.ts",
+  "content": "import { createSignature } from '../crypto'\n\nexport function buildAuthHeaders(...) { ... }"
+}
+```
+
+## Validation Rules
+
+- GitHub URLs must include `blob` (or `raw`), a branch/tag, and the file path. If any piece is missing you will receive a descriptive error.
+- Binary files are skipped. The tool is designed for text content only.
+- Web fetches automatically normalize the URL, adding `https://` when omitted.
+
+## Typical Uses
+
+1. **Grounding responses:** After `search-content` finds a snippet, call `scrape-content` to provide the full section to your AI assistant.
+2. **Spot-checking new crawls:** Pull a freshly indexed page to confirm the crawler captured the latest copy.
+3. **Diffing code:** Download two versions of a GitHub file (different refs) and compare locally.

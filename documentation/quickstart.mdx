@@ -1,0 +1,113 @@
+---
+title: "Context MCP Quickstart"
+description: "Wire up any MCP-compatible client to the Context MCP endpoint in minutes."
+---
+
+# Quickstart
+
+Follow these steps to connect any MCP-compatible client to the Context MCP server and run your first workflow. All examples assume the hosted endpoint lives at `https://context-mcp.vercel.app`.
+
+## 1. Obtain access details
+
+Ask your platform admin for:
+
+- Server base URL (`https://context-mcp.vercel.app`).
+- API token if your organization issues per-user credentials.
+- Approved documentation or repository domains you’re allowed to index.
+
+## 2. Register the server with your client
+
+Add the endpoint to your client configuration. Here is a Cursor-style example:
+
+```json
+{
+  "mcpServers": {
+    "context-mcp": {
+      "url": "https://context-mcp.vercel.app"
+    }
+  }
+}
+```
+
+Restart the client so it discovers the new tools. Claude Desktop, Windsurf, and Continue have equivalent “Add MCP Server” dialogs where you paste the same URL.
+
+## 3. Verify connectivity
+
+Open the client’s command palette (for example `Ctrl+Shift+P → MCP: List Tools`) and confirm the following commands appear: `index-content`, `scrape-content`, `index-job-status`, and `search-content`. If your client surfaces sample invocations, run one of the health-check commands to make sure responses stream back immediately.
+
+## 4. Kick off your first index job
+
+**Prompt**
+
+> “Index https://docs.widgets.io so I can search it later.”
+
+**Response**
+
+```json
+{
+  "tool": "index-content",
+  "jobId": "job_Zp62xxM86Q",
+  "status": "queued",
+  "message": "Documentation indexing runs asynchronously. Use index-job-status job_Zp62xxM86Q to monitor progress."
+}
+```
+
+## 5. Monitor the crawl
+
+**Prompt**
+
+> “Check index-job-status for job_Zp62xxM86Q.”
+
+**Response**
+
+```json
+{
+  "tool": "index-job-status",
+  "jobId": "job_Zp62xxM86Q",
+  "state": "completed",
+  "documentsIndexed": 42
+}
+```
+
+When the job is `completed`, the new resource (for example `doc:https://docs.widgets.io`) becomes searchable immediately.
+
+## 6. Ask questions against the new corpus
+
+**Prompt**
+
+> “Search the Widgets docs for authentication requirements.”
+
+**Response**
+
+```json
+{
+  "tool": "search-content",
+  "query": "authentication requirements",
+  "sources": ["documentation"],
+  "results": [
+    {
+      "resourceId": "doc:https://docs.widgets.io",
+      "url": "https://docs.widgets.io/api/auth",
+      "snippet": "Supply personal access tokens in the Authorization header..."
+    }
+  ]
+}
+```
+
+## 7. Pull the exact source text
+
+**Prompt**
+
+> “Use scrape-content to grab https://docs.widgets.io/api/auth so I can quote the exact wording.”
+
+**Response**
+
+```json
+{
+  "tool": "scrape-content",
+  "url": "https://docs.widgets.io/api/auth",
+  "content": "## Authentication\nSupply personal access tokens..."
+}
+```
+
+Re-run `index-content` whenever upstream docs or repos change, and rely on `index-job-status` to keep tabs on background crawls. The MCP transport is stateless, so you can restart your IDE at any time without interrupting work in flight.

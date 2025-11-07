@@ -1,0 +1,99 @@
+---
+title: "Search Guide"
+description: "How to query the Context MCP vector store via `search-content`."
+---
+
+# Searching Indexed Content (`search-content`)
+
+Use `search-content` whenever you need grounded answers from the documentation and repositories you indexed with `index-content`. Results come from Pinecone (Documentation + Github namespaces) and are re-ranked with Qwen/Qwen3-Reranker-4B before streaming back through MCP.
+
+## Parameters
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `query` | string | Natural-language question or phrase. |
+| `sources` | string[]? | Any combination of `documentation` and `github`. Defaults to both namespaces. |
+| `top_k` | number? | Maximum matches per namespace (default 5, max 20). |
+
+## Example: Broad semantic search
+
+**Prompt**
+
+> “Search everything I’ve indexed for authentication guidance.”
+
+**Response**
+
+```json
+{
+  "tool": "search-content",
+  "query": "authentication guidance",
+  "sources": ["documentation", "github"],
+  "top_k": 5,
+  "hits": [
+    {
+      "namespace": "documentation",
+      "url": "https://docs.example.com/api/auth",
+      "snippet": "Use OAuth2 client credentials for service integrations..."
+    },
+    {
+      "namespace": "github",
+      "repo": "example/awesome-repo",
+      "path": "sdk/auth.ts",
+      "snippet": "export function buildAuthHeaders(token: string) { ... }"
+    }
+  ]
+}
+```
+
+## Example: Scoped + grouped results
+
+**Prompt**
+
+> “Search only documentation results for rate limit rules.”
+
+**Response**
+
+```json
+{
+  "tool": "search-content",
+  "sources": ["documentation"],
+  "query": "rate limit rules",
+  "hits": [
+    {
+      "namespace": "documentation",
+      "url": "https://docs.example.com/api/rate-limits",
+      "snippet": "Default user tokens allow 1,000 requests per minute. Bursting up to 2x baseline is permitted for 60 seconds."
+    }
+  ]
+}
+```
+
+## Example: GitHub-only search
+
+**Prompt**
+
+> “Search just the GitHub namespace for the webhook retry helper.”
+
+**Response**
+
+```json
+{
+  "tool": "search-content",
+  "sources": ["github"],
+  "query": "webhook retry helper",
+  "hits": [
+    {
+      "repo": "example/awesome-repo",
+      "path": "workers/webhookRetry.ts",
+      "snippet": "const backoffSchedule = [5_000, 15_000, 60_000]..."
+    }
+  ]
+}
+```
+
+## Tips for better answers
+
+1. Phrase questions naturally (“How do I authenticate?”) — the retriever is tuned for sentences, not short keywords.
+2. Keep `top_k` modest (5–8) so the reranker focuses on the most relevant passages.
+3. Use `sources` to zero in on either documentation or GitHub when you already know where the answer should live.
+4. Need the exact source text? Follow up with `scrape-content` using the `url`/`repo + path` returned in each hit.

@@ -1,0 +1,53 @@
+---
+title: "Recommended MCP Workflows"
+description: "Battle-tested playbooks for chaining Context MCP tools."
+---
+
+# Recommended Workflows
+
+The four tools work best when chained together. Use the playbooks below as templates for common tasks.
+
+## 1. Bring a Documentation Site Online
+
+1. **Kick off indexing**
+   - **Prompt:** “Index https://docs.widgets.io.”
+   - **Response:** `{"tool":"index-content","jobId":"job_docs","status":"queued"}`
+2. **Watch the job**
+   - **Prompt:** “Run index-job-status for job_docs.”
+   - **Response:** `{"tool":"index-job-status","jobId":"job_docs","state":"completed"}`
+3. **Search immediately**
+   - **Prompt:** “Search-content for ‘What scopes do tokens need?’ with documentation sources.”
+   - **Response:** JSON hit list pointing at `https://docs.widgets.io/auth/scopes`.
+4. **Inspect the source if needed**
+   - **Prompt:** “Scrape-content https://docs.widgets.io/auth/scopes.”
+   - **Response:** Markdown content you can paste into a follow-up answer.
+
+## 2. Audit a Repository Before Release
+
+1. **Index the repo**
+   - **Prompt:** “Index https://github.com/widgets/monorepo so I can review the latest SDK changes.”
+2. **Track ingestion stats**
+   - **Prompt:** “Check index-job-status for <repo-job-id> with include_payload true.”
+   - **Response:** Includes `indexedCount`, `cachedCount`, and namespace details—confirm they match expectations.
+3. **Run semantic smoke tests**
+   - **Prompt:** “Search-content for ‘Explain how rate limiting works’ but only in the GitHub namespace.”
+4. **Deep dive into a file**
+   - **Prompt:** “Scrape-content https://github.com/widgets/monorepo/blob/main/services/rate-limit.ts.”
+
+## 3. Investigate a Support Ticket
+
+1. **Search across everything**
+   - **Prompt:** “Search-content for ‘timeouts when uploading large media’.”
+2. **No hits? Verify freshness**
+   - **Prompt:** “Run index-job-status for source https://docs.widgets.io.”
+   - If the latest job is old, trigger `index-content` again and repeat the search.
+3. **Share the exact snippet**
+   - **Prompt:** “Scrape-content <returned URL> so I can quote the precise remediation steps.”
+
+## 4. Periodic Maintenance Loop
+
+- Schedule `index-content` runs (docs + repos) after each deployment.
+- Keep a simple dashboard that calls `index-job-status` with `limit = 20` to monitor historical jobs.
+- Spot-check random hits by pairing `search-content` with `scrape-content` so you can confirm snippets stay fresh.
+
+Following these patterns ensures your MCP assistant always has current, trustworthy context without manual copy/paste work.
